@@ -7,6 +7,7 @@ import '../services/offline_service.dart';
 import '../services/round_summary.dart';
 import '../services/security_service.dart';
 import '../services/session_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guards_map.dart';
 import 'login_view.dart';
@@ -1186,20 +1187,33 @@ class _SuperViewState extends State<SuperView> with SingleTickerProviderStateMix
                                 return Card(
                                   color: AppColors.surface,
                                   child: ListTile(
+                                    // La base guarda la ruta dentro del bucket
+                                    // privado; la URL se firma acá y vence en
+                                    // una hora.
                                     leading: photoUrl == null || photoUrl.isEmpty
                                         ? const Icon(Icons.warning_amber, color: Colors.amber)
-                                        : GestureDetector(
-                                            onTap: () => _openPhotoPreview(photoUrl),
-                                            child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(6),
-                                              child: Image.network(
-                                                photoUrl,
-                                                width: 48,
-                                                height: 48,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.grey),
-                                              ),
-                                            ),
+                                        : FutureBuilder<String?>(
+                                            future: StorageService.signedUrlFor(photoUrl),
+                                            builder: (ctx, snap) {
+                                              final url = snap.data;
+                                              if (url == null) {
+                                                return const Icon(Icons.image_outlined, color: Colors.grey);
+                                              }
+                                              return GestureDetector(
+                                                onTap: () => _openPhotoPreview(url),
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  child: Image.network(
+                                                    url,
+                                                    width: 48,
+                                                    height: 48,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (_, __, ___) =>
+                                                        const Icon(Icons.broken_image, color: Colors.grey),
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                           ),
                                     title: Text(item['title']?.toString() ?? '', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                                     subtitle: Column(

@@ -47,15 +47,21 @@ create or replace function public.session_of(p_token uuid)
 returns table (role text, profile_id uuid, installation_id uuid)
 language plpgsql security definer set search_path = public, extensions as $$
 begin
+  -- Además del vencimiento por inactividad, hay un tope absoluto desde la
+  -- creación: con solo renovación deslizante, una sesión robada seguía viva
+  -- indefinidamente mientras el atacante la usara.
   return query
     select s.role, s.profile_id, s.installation_id
     from public.sessions s
-    where s.token = p_token and s.expires_at > now();
+    where s.token = p_token
+      and s.expires_at > now()
+      and s.created_at > now() - interval '7 days';
 
-  -- Renovación deslizante: mientras se use, la sesión no vence.
   update public.sessions
   set last_seen_at = now(), expires_at = now() + interval '12 hours'
-  where token = p_token and expires_at > now();
+  where token = p_token
+    and expires_at > now()
+    and created_at > now() - interval '7 days';
 end;
 $$;
 
@@ -301,10 +307,16 @@ $$;
 -- sesión válida podía guardar cualquier URL y la app del supervisor la cargaba
 -- con Image.network: sirve para rastrear cuándo abre un incidente, o para
 -- apuntar a hosts internos de su red.
+-- Se acepta la ruta dentro del bucket ('incidents/...' o 'alerts/...'), que
+-- es lo que guarda la app desde que las URLs se firman al mostrarlas. Se
+-- siguen aceptando URLs completas del proyecto por compatibilidad con lo ya
+-- registrado. Sin esta validación, un cliente con sesión podía guardar una
+-- dirección a cualquier host y la app del supervisor la cargaba.
 create or replace function public.is_own_storage_url(p_url text)
 returns boolean
 language sql immutable set search_path = public, extensions as $$
   select p_url is null
+      or p_url ~ '^(incidents|alerts)/[A-Za-z0-9_.-]+$'
       or p_url ~ '^https://[a-z0-9]+\.supabase\.co/storage/v1/object/(public|sign)/incident-photos/';
 $$;
 
@@ -326,6 +338,10 @@ begin
 end;
 $$;
 
+-- El tipo de evento llega del cliente, así que hay que acotarlo: sin esta
+-- lista, un guardia podía registrar un evento 'audit' con el texto que
+-- quisiera, y aparecía en la bitácora global como si fuera una acción del
+-- supervisor. Falsear el registro de auditoría es peor que no tenerlo.
 create or replace function public.record_log(
   p_token uuid, p_event_type text, p_details text, p_created_at timestamptz default now()
 )
@@ -334,7 +350,16 @@ language plpgsql security definer set search_path = public, extensions as $$
 declare v_session record;
 begin
   select * into v_session from public.session_of(p_token);
-  if not found then return false; end if;
+  -- Igual que GPS e incidentes: sin instalación no hay ronda que registrar.
+  if not found or v_session.installation_id is null then return false; end if;
+
+  if p_event_type not in (
+    'round_start', 'round_end', 'incident', 'alert_response',
+    'checkin_qr', 'checkin_nfc', 'checkin_manual',
+    'offline_event', 'mock_gps_detected', 'low_battery', 'random_check'
+  ) then
+    return false;
+  end if;
 
   insert into public.system_logs (user_id, event_type, details, created_at)
   values (v_session.profile_id, p_event_type, left(p_details, 2000), p_created_at);
@@ -491,6 +516,22 @@ language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not public.is_superuser(p_token) then return false; end if;
 
+  -- Como el guardia inicia sesión solo con su contraseña, dos personas con la
+  -- misma contraseña serían indistinguibles: el login devolvería siempre al
+  -- primero, y las rondas del segundo quedarían a nombre ajeno. Por eso se
+  -- rechaza una contraseña que ya esté en uso. No se puede resolver con una
+  -- restricción UNIQUE porque bcrypt genera un hash distinto cada vez.
+  if p_password_hash is not null and p_password_hash <> '' then
+    if exists (
+      select 1 from public.profiles p
+      where p.role = 'guardia'
+        and (p_id is null or p.id <> p_id)
+        and public.verify_password(p.password_hash, p_password_hash)
+    ) then
+      return false;
+    end if;
+  end if;
+
   -- Se guarda bcrypt, nunca el SHA-256 que llega del cliente.
   if p_id is null then
     if p_password_hash is null or p_password_hash = '' then return false; end if;
@@ -636,6 +677,17 @@ language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not public.is_superuser(p_token) then return false; end if;
   if p_new_hash is null or p_new_hash = '' then return false; end if;
+
+  -- Misma razón que en admin_upsert_guard: repetir la contraseña de otro
+  -- guardia haría que el login los confunda.
+  if exists (
+    select 1 from public.profiles p
+    where p.role = 'guardia' and p.id <> p_id
+      and public.verify_password(p.password_hash, p_new_hash)
+  ) then
+    return false;
+  end if;
+
   update public.profiles
   set password_hash = crypt(p_new_hash, gen_salt('bf', 10))
   where id = p_id and role = 'guardia';

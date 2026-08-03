@@ -9,11 +9,11 @@ import '../config/supabase_config.dart';
 class StorageService {
   static const String bucket = 'incident-photos';
 
-  /// Sube la foto y devuelve una URL firmada de larga duración.
+  /// Sube la foto y devuelve su **ruta** dentro del bucket, no una URL.
   ///
-  /// El bucket es privado: `getPublicUrl` ya no resuelve. Antes era público, y
-  /// eso dejaba las fotos de incidentes descargables por cualquiera que tuviera
-  /// la URL, sin credencial alguna.
+  /// Guardar una URL firmada a diez años equivalía a dejarla pública: si esa
+  /// dirección se filtraba, servía para siempre. Ahora se guarda la ruta y la
+  /// URL se firma al momento de mostrarla, con vencimiento corto.
   static Future<String?> uploadPhoto(Uint8List bytes, String folder) async {
     try {
       final path = '$folder/${DateTime.now().millisecondsSinceEpoch}_${_randomSuffix()}.jpg';
@@ -22,11 +22,24 @@ class StorageService {
             bytes,
             fileOptions: const FileOptions(contentType: 'image/jpeg'),
           );
-      // 10 años: el incidente queda como evidencia y el supervisor tiene que
-      // poder abrirlo mucho después de registrado.
+      return path;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Firma una ruta para poder mostrarla. Una hora alcanza para abrir el
+  /// incidente y deja la dirección inservible poco después.
+  ///
+  /// Acepta también URLs completas de versiones anteriores, que guardaban la
+  /// URL firmada en lugar de la ruta.
+  static Future<String?> signedUrlFor(String pathOrUrl) async {
+    if (pathOrUrl.isEmpty) return null;
+    if (pathOrUrl.startsWith('http')) return pathOrUrl;
+    try {
       return await SupabaseConfig.client.storage
           .from(bucket)
-          .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+          .createSignedUrl(pathOrUrl, 60 * 60);
     } catch (_) {
       return null;
     }
