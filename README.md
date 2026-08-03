@@ -12,6 +12,11 @@ flutter build web --dart-define-from-file=.env
 flutter build apk --dart-define-from-file=.env
 ```
 
+Para release (APK + web) usar `tool/build_release.sh`: compila con el flag
+correcto siempre. Compilar sin `--dart-define-from-file=.env` produce un APK
+que compila y firma bien pero se cierra solo al abrir (URL/key de Supabase
+quedan vacías).
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
