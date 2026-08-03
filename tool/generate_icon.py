@@ -106,11 +106,10 @@ DENSITIES = {
 for name, px in DENSITIES.items():
     outdir = os.path.join(ROOT, "android/app/src/main/res", f"mipmap-{name}")
     os.makedirs(outdir, exist_ok=True)
+    # Sin variante adaptativa (no hay mipmap-anydpi-v26/ic_launcher.xml):
+    # este PNG con esquinas redondeadas es el único ícono, en todas las
+    # versiones de Android.
     rounded(draw_icon(px)).save(os.path.join(outdir, "ic_launcher.png"))
-    # Adaptativo: el sistema recorta el 33% exterior, así que el escudo va
-    # más chico y el fondo va aparte.
-    draw_icon(int(px * 1.5), with_bg=False, shield_scale=0.40).save(
-        os.path.join(outdir, "ic_launcher_foreground.png"))
 
 # Web y tienda
 web = os.path.join(ROOT, "web/icons")
