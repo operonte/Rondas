@@ -1,0 +1,55 @@
+Plan de mejoras para la app de Control de Rondas de Seguridad
+
+
+-evitar la inyeccion de codigo en formularios y entradas de usuario.
+- Validar y sanitizar todos los datos de entrada más exhaustivamente, incluyendo transformación de caracteres especiales.
+- Proteger la comunicación y verificar el endpoint Supabase con validación SSL estricta.
+
+2. Fiabilidad y offline
+- Consolidar la sincronización offline: cola de GPS, incidentes y logs con reintentos y reporte de estado.
+- Añadir indicadores de estado de red en la UI y notificaciones de sincronización exitosa/error.
+- Guardar datos críticos en cache local seguro usando Hive con cifrado opcional.
+
+3. Usabilidad y experiencia
+- Agregar un flujo de login con campos de usuario/contraseña y validación de formularios.
+- Mostrar resumen de estado de ronda: última ubicación, nivel de batería, alertas activas y registros recientes.
+- Añadir pestañas o menú para cambiar entre rondas, historial y configuración.
+- Mejorar el diseño visual con componentes Material 3 y mayor contraste para legibilidad.
+
+4. Funcionalidad de guardia
+- Permitir reportar incidentes con fotos y/o ubicación adjunta.
+- Integrar escaneo QR/NFC para check-ins en puntos de control.
+- Añadir check-in automático en ubicaciones de ronda predefinidas.
+- Registrar tiempos de inicio y fin de ronda y generar resúmenes diarios.
+
+5. Funcionalidad de supervisión
+- Incluir un panel de supervisión con mapa y seguimiento en tiempo real de guardias.
+- Mostrar estadísticas de rondas, incidentes y tiempos de respuesta.
+- Permitir crear, editar y desactivar instalaciones con validación y confirmación.
+- Agregar filtros y búsqueda en los logs globales y registros GPS.
+
+6. Alertas y notificaciones
+- Incorporar notificaciones push/local para alertas urgentes y pérdida de conexión.
+- Configurar alarmas sonoras y visuales claras en caso de alerta crítica.
+- Registrar la confirmación de alertas con evidencia (foto, comentario, ubicación).
+
+7. Calidad de código y mantenimiento
+- Migrar a un patrón de estado más escalable (Provider, Riverpod o Bloc).
+- Separar la lógica de negocio de la UI y crear servicios mejor definidos.
+- Añadir pruebas unitarias y widget tests para los flujos críticos.
+- Documentar la arquitectura, los endpoints y el setup de entorno.
+
+8. Internacionalización y accesibilidad
+- Preparar la app para varios idiomas (español/inglés) con traducciones.
+- Mejorar accesibilidad con etiquetas semánticas, tamaños de texto adaptables y soporte de contraste.
+- Soportar navegación por teclado y lectores de pantalla si se usa en web o tablet.
+
+9. Rendimiento y escalabilidad
+- Optimizar consultas Supabase y paginación de datos en listas grandes.
+- Implementar manejo de errores más robusto y mensajes de usuario claros.
+- Aplicar límites de tasa y sanitizar datos para evitar sobresaturación del backend.
+
+10. Soporte multiplataforma
+- Garantizar compatibilidad nativa en Android y Web.
+- Adaptar la UI para dispositivos de diferentes tamaños y orientaciones.
+- Añadir manejo de permisos claro para ubicación y cámara.
