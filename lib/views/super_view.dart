@@ -895,14 +895,7 @@ class _SuperViewState extends State<SuperView> with SingleTickerProviderStateMix
                                                 IconButton(
                                                   icon: const Icon(Icons.copy, color: Colors.white70),
                                                   tooltip: 'Copiar contraseña',
-                                                  onPressed: () {
-                                                    Clipboard.setData(ClipboardData(text: item.accessCode));
-                                                    if (mounted) {
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                        const SnackBar(content: Text('Contraseña copiada al portapapeles')),
-                                                      );
-                                                    }
-                                                  },
+                                                  onPressed: () => _copyAccessCode(item.accessCode),
                                                 ),
                                                 IconButton(
                                                   icon: const Icon(Icons.edit, color: Colors.cyanAccent),
@@ -1336,6 +1329,31 @@ class _SuperViewState extends State<SuperView> with SingleTickerProviderStateMix
               ],
             ),
     );
+  }
+
+  /// Copia el código de una instalación y lo borra del portapapeles al minuto.
+  ///
+  /// El portapapeles de Android es compartido: cualquier app instalada puede
+  /// leerlo. Dejar ahí la contraseña de un sitio de forma indefinida la expone
+  /// a todo lo que haya en el teléfono.
+  Future<void> _copyAccessCode(String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Contraseña copiada. Se borrará del portapapeles en 1 minuto.'),
+        duration: Duration(seconds: 4),
+      ),
+    );
+
+    Future.delayed(const Duration(minutes: 1), () async {
+      // Solo se limpia si sigue estando lo que copiamos: si el usuario copió
+      // otra cosa entretanto, no hay que pisársela.
+      final actual = await Clipboard.getData(Clipboard.kTextPlain);
+      if (actual?.text == code) {
+        await Clipboard.setData(const ClipboardData(text: ''));
+      }
+    });
   }
 
   /// Repone la contraseña de un guardia sin pedir la anterior: el supervisor

@@ -149,10 +149,12 @@ begin
 
   perform public.record_attempt(p_identifier, false);
 
-  -- Escalado hasta 3 s: suficiente para hacer inviable la fuerza bruta sin
-  -- retener conexiones de la base más de la cuenta.
+  -- El retardo retiene una conexión de la base mientras dura, así que muchos
+  -- intentos simultáneos podrían agotar el pool: es un ataque de denegación
+  -- montado sobre la propia defensa. Se acota a 1 s, que ya baja el ritmo de
+  -- miles de pruebas por minuto a unas decenas, sin volverse el problema.
   if v_recent > 0 then
-    perform pg_sleep(least(v_recent * 0.5, 3.0));
+    perform pg_sleep(least(v_recent * 0.2, 1.0));
   end if;
 end;
 $$;
@@ -318,8 +320,28 @@ begin
   -- Exige instalación elegida: una ronda sin sitio no se puede supervisar.
   if not found or v_session.installation_id is null then return false; end if;
 
+  -- Coordenadas fuera de rango: dato corrupto o fabricado.
+  if p_latitude is null or p_longitude is null
+     or p_latitude not between -90 and 90
+     or p_longitude not between -180 and 180 then
+    return false;
+  end if;
+
+  -- La hora la acota el servidor. El cliente la envía porque las rondas se
+  -- registran también sin conexión y se suben después, pero si se aceptara
+  -- tal cual, un guardia con la app modificada podría fabricar un recorrido
+  -- con las horas que quisiera. Se admite hasta 7 días hacia atrás (lo que
+  -- puede tardar una cola offline) y nada en el futuro.
   insert into public.gps_logs (user_id, latitude, longitude, accuracy, is_mock, battery_level, recorded_at)
-  values (v_session.profile_id, p_latitude, p_longitude, p_accuracy, p_is_mock, p_battery_level, p_recorded_at);
+  values (
+    v_session.profile_id, p_latitude, p_longitude, p_accuracy,
+    -- is_mock lo calcula el teléfono, así que una app modificada podría
+    -- mandar siempre false. Se refuerza en el servidor: una precisión
+    -- absurdamente buena o ausente también es señal de posición simulada.
+    coalesce(p_is_mock, false) or p_accuracy is null or p_accuracy <= 0,
+    p_battery_level,
+    least(greatest(coalesce(p_recorded_at, now()), now() - interval '7 days'), now())
+  );
   return true;
 end;
 $$;
@@ -354,7 +376,8 @@ begin
   if not public.is_own_storage_url(p_photo_url) then return false; end if;
 
   insert into public.incidents (user_id, title, description, photo_url, recorded_at)
-  values (v_session.profile_id, left(p_title, 200), left(p_description, 2000), p_photo_url, p_recorded_at);
+  values (v_session.profile_id, left(p_title, 200), left(p_description, 2000), p_photo_url,
+          least(greatest(coalesce(p_recorded_at, now()), now() - interval '7 days'), now()));
   return true;
 end;
 $$;
@@ -383,7 +406,8 @@ begin
   end if;
 
   insert into public.system_logs (user_id, event_type, details, created_at)
-  values (v_session.profile_id, p_event_type, left(p_details, 2000), p_created_at);
+  values (v_session.profile_id, p_event_type, left(p_details, 2000),
+          least(greatest(coalesce(p_created_at, now()), now() - interval '7 days'), now()));
   return true;
 end;
 $$;
