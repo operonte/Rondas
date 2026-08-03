@@ -1,7 +1,7 @@
 name: rondas
 description: "Sistema de Control de Rondas de Seguridad Móvil (Flutter Web / Android APK)"
 publish_to: 'none'
-version: 1.4.4+10
+version: 1.5.0+11
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -36,3 +36,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/sounds/

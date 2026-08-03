@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../config/supabase_config.dart';
 import 'notification_service.dart';
@@ -12,17 +14,27 @@ class OfflineService {
   static const String _logsBoxName = 'logs_queue';
   static const String _syncMetaBoxName = 'sync_meta';
   static const bool _useEncryption = true;
+  static const String _hiveKeyStorageKey = 'rondas_hive_cipher_key';
+  static const _secureStorage = FlutterSecureStorage();
   static final ValueNotifier<bool> isOnline = ValueNotifier<bool>(false);
   static final ValueNotifier<int> pendingSyncCount = ValueNotifier<int>(0);
   static final ValueNotifier<String> lastSyncLabel = ValueNotifier<String>('Nunca sincronizado');
 
+  /// Clave de cifrado propia del dispositivo, generada una vez y guardada en
+  /// el almacén seguro (Keystore en Android). Antes se derivaba de la anon
+  /// key de Supabase, que es pública por diseño (viaja en el APK) -- con eso,
+  /// cualquiera con el instalador derivaba la misma clave y leía la base Hive
+  /// de cualquier instalación. Así, cada dispositivo tiene una clave distinta
+  /// que nunca sale de él.
   static Future<HiveAesCipher?> _getEncryptionCipher() async {
     if (!_useEncryption) return null;
     try {
-      const keyMaterial = SupabaseConfig.supabaseAnonKey;
-      if (keyMaterial.isEmpty) return null;
-      final secretKey = SecurityService.deriveEncryptionKey(keyMaterial);
-      return HiveAesCipher(secretKey);
+      var keyB64 = await _secureStorage.read(key: _hiveKeyStorageKey);
+      if (keyB64 == null) {
+        keyB64 = base64Encode(Hive.generateSecureKey());
+        await _secureStorage.write(key: _hiveKeyStorageKey, value: keyB64);
+      }
+      return HiveAesCipher(base64Decode(keyB64));
     } catch (_) {
       return null;
     }

@@ -25,8 +25,11 @@ class NotificationService {
     if (_ready || kIsWeb) return;
     try {
       await _plugin.initialize(
+        // Icono de status bar: Android tiñe a blanco solido e ignora el color,
+        // así que necesita una silueta con alfa, no el ic_launcher a color
+        // (se veía como un bloque blanco sin forma).
         settings: const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          android: AndroidInitializationSettings('@drawable/ic_stat_rondas'),
         ),
       );
       // Android 13+ exige permiso explícito de notificaciones.

@@ -21,13 +21,6 @@ class SecurityService {
     return digest.toString();
   }
 
-  /// Deriva una clave de cifrado de 256 bits a partir de un material secreto.
-  static Uint8List deriveEncryptionKey(String secretMaterial) {
-    final bytes = utf8.encode(secretMaterial.trim());
-    final digest = sha256.convert(bytes);
-    return Uint8List.fromList(digest.bytes);
-  }
-
   static String generateSecurePassword([int length = 12]) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#%&*';
     final rnd = Random.secure();

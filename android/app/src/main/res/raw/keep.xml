@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  flutter_local_notifications resuelve el icono por nombre en tiempo de
+  ejecución (getIdentifier), no por una referencia @drawable estática. El
+  shrinker de recursos (isShrinkResources) no ve ese uso y lo borra del build
+  de release; esta regla lo fuerza a conservarlo.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_rondas" />

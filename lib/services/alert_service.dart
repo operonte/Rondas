@@ -43,7 +43,9 @@ class AlertService {
 
   void playAlertSound() async {
     try {
-      await _audioPlayer.play(UrlSource('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg'));
+      // Asset local: si esto dependiera de una URL externa, una alerta de
+      // pánico sin internet no sonaría justo cuando más importa.
+      await _audioPlayer.play(AssetSource('sounds/alarm.wav'));
     } catch (_) {}
   }
 

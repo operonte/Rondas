@@ -38,12 +38,6 @@ void main() {
     });
   });
 
-  group('SecurityService.deriveEncryptionKey', () {
-    test('deriva una clave de 32 bytes (256 bits)', () {
-      expect(SecurityService.deriveEncryptionKey('material-secreto').length, 32);
-    });
-  });
-
   group('SecurityService.generateSecurePassword', () {
     test('respeta la longitud pedida', () {
       expect(SecurityService.generateSecurePassword(20).length, 20);
