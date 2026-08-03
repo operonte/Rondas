@@ -92,7 +92,10 @@ class _GuardViewState extends State<GuardView> {
   }
 
   Future<void> _loadLogs() async {
-    final logs = OfflineService.getLocalLogs();
+    // Filtrado por el guardia de la sesión: la bitácora local guarda lo de
+    // todos los que usaron este dispositivo, incluido el supervisor.
+    final userId = await AuthService.getCurrentUserId();
+    final logs = OfflineService.getLocalLogs(userId: userId);
     if (!mounted) return;
     setState(() {
       _todayLogs = logs.reversed.toList();

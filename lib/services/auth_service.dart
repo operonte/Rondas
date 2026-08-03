@@ -60,6 +60,20 @@ class AuthService {
 
       final roleStr = row['role'] as String? ?? 'guardia';
       final displayName = row['display_name']?.toString() ?? 'Usuario';
+      final profileId = row['profile_id']?.toString();
+
+      // Cambio de usuario en el mismo dispositivo: la bitácora local es por
+      // dispositivo, así que sin esto un guardia vería los registros que dejó
+      // el supervisor (o el guardia anterior) al usar este mismo teléfono.
+      final previousId = prefs.getString(_sessionUserIdKey);
+      if (previousId != null && previousId != profileId) {
+        await OfflineService.clearSyncedLogs();
+      }
+      if (profileId != null) {
+        await prefs.setString(_sessionUserIdKey, profileId);
+      } else {
+        await prefs.remove(_sessionUserIdKey);
+      }
 
       if (roleStr == 'superusuario') {
         await prefs.setString(_sessionRoleKey, 'superusuario');

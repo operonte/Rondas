@@ -125,9 +125,27 @@ class OfflineService {
     await updatePendingCount();
   }
 
-  static List<Map<String, dynamic>> getLocalLogs() {
+  /// Bitácora local. Con [userId] devuelve solo lo de esa persona.
+  ///
+  /// La caja es del dispositivo, no del usuario: si el supervisor usó este
+  /// teléfono antes, sus registros siguen acá. Un guardia no tiene por qué
+  /// verlos, así que la vista de guardia siempre filtra por su propio id.
+  static List<Map<String, dynamic>> getLocalLogs({String? userId}) {
     final box = Hive.box(_logsBoxName);
-    return box.values.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final all = box.values.map((e) => Map<String, dynamic>.from(e as Map));
+    if (userId == null) return all.toList();
+    return all.where((log) => log['user_id']?.toString() == userId).toList();
+  }
+
+  /// Descarta los registros que ya se sincronizaron y no pertenecen al usuario
+  /// indicado. Se llama al entrar con una cuenta distinta en el mismo aparato.
+  /// Lo pendiente de sincronizar se conserva: perderlo sería perder la ronda.
+  static Future<void> clearSyncedLogs() async {
+    if (!Hive.isBoxOpen(_logsBoxName)) return;
+    // Se intenta vaciar la cola primero; lo que entra al servidor ya está a
+    // salvo y puede borrarse del teléfono.
+    await syncAllData();
+    await updatePendingCount();
   }
 
   /// Envía una posición vía RPC. Devuelve false si no hay sesión o falla la

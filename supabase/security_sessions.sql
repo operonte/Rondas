@@ -149,7 +149,8 @@ returns table (
   display_name text,
   installation_id uuid,
   installation_name text,
-  requires_guard_selection boolean
+  requires_guard_selection boolean,
+  profile_id uuid
 )
 language plpgsql security definer set search_path = public, extensions as $$
 declare
@@ -171,7 +172,7 @@ begin
 
     return query select
       v_token, 'superusuario'::text, v_profile.full_name, null::uuid,
-      'Central de Supervisión'::text, false;
+      'Central de Supervisión'::text, false, v_profile.id;
     return;
   end if;
 
@@ -195,7 +196,7 @@ begin
 
     return query select
       v_token, 'guardia'::text, v_profile.full_name, null::uuid,
-      ''::text, true;
+      ''::text, true, v_profile.id;
     return;
   end if;
 
