@@ -20,6 +20,27 @@
 -- aunque sí funcionen en consultas sueltas (la base los tiene en su search_path).
 
 -- ---------------------------------------------------------
+-- 0. Limpieza de versiones anteriores
+-- ---------------------------------------------------------
+-- `create or replace function` NO puede cambiar el tipo de retorno de una
+-- función que ya existe: falla con "cannot change return type of existing
+-- function". Como este archivo se reejecuta sobre bases ya desplegadas, hay
+-- que borrar primero las funciones cuya firma cambió entre versiones.
+--
+-- También se eliminan las que quedaron obsoletas: seguían existiendo en la
+-- base con permiso de ejecución heredado de PUBLIC, o sea como puerta trasera.
+drop function if exists public.login(text, text);
+drop function if exists public.claim_guard_identity(uuid, uuid);
+drop function if exists public.session_guards(uuid);
+drop function if exists public.login_profile(text, text);
+drop function if exists public.login_superuser(text);
+drop function if exists public.login_installation(text);
+drop function if exists public.list_guard_profiles();
+drop function if exists public.list_guard_profiles_by_installation(uuid);
+drop function if exists public.guard_name_available(text, uuid);
+drop function if exists public.update_superuser_password(text, text);
+
+-- ---------------------------------------------------------
 -- 1. Tabla de sesiones
 -- ---------------------------------------------------------
 create table if not exists public.sessions (
@@ -774,15 +795,6 @@ create policy "Storage_IncidentPhotos_Insert" on storage.objects
 create policy "Storage_IncidentPhotos_Select" on storage.objects
   for select using (bucket_id = 'incident-photos');
 
--- Revocar el acceso a las funciones viejas, que devolvían datos sin exigir
--- sesión y quedarían como puerta trasera.
-revoke execute on function public.login_profile(text, text) from anon, authenticated;
-revoke execute on function public.login_superuser(text) from anon, authenticated;
-revoke execute on function public.login_installation(text) from anon, authenticated;
-revoke execute on function public.list_guard_profiles() from anon, authenticated;
-revoke execute on function public.list_guard_profiles_by_installation(uuid) from anon, authenticated;
-revoke execute on function public.guard_name_available(text, uuid) from anon, authenticated;
-revoke execute on function public.update_superuser_password(text, text) from anon, authenticated;
 
 grant execute on function public.login(text, text) to anon, authenticated;
 grant execute on function public.logout(uuid) to anon, authenticated;
@@ -831,14 +843,6 @@ revoke execute on function public.session_of(uuid) from public, anon, authentica
 revoke execute on function public.is_superuser(uuid) from public, anon, authenticated;
 revoke execute on function public.is_own_storage_url(text) from public, anon, authenticated;
 
--- Las funciones viejas tampoco deben quedar accesibles vía PUBLIC.
-revoke execute on function public.login_profile(text, text) from public;
-revoke execute on function public.login_superuser(text) from public;
-revoke execute on function public.login_installation(text) from public;
-revoke execute on function public.list_guard_profiles() from public;
-revoke execute on function public.list_guard_profiles_by_installation(uuid) from public;
-revoke execute on function public.guard_name_available(text, uuid) from public;
-revoke execute on function public.update_superuser_password(text, text) from public;
 
 -- Las funciones security definer alcanzan las tablas con permisos del owner,
 -- así que `anon` no necesita ningún grant directo sobre ellas.
